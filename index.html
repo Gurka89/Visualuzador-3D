@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Visualizador 3D</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden; /* Oculta barras de desplazamiento */
+    }
+    canvas {
+      display: block; /* Ocupa toda la pantalla */
+    }
+  </style>
+</head>
+<body>
+  <!-- Importamos Three.js y el cargador GLTFLoader -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.152.2/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three/examples/js/controls/OrbitControls.js"></script>
+
+  <script>
+    // Configuración básica de la escena
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight); // Tamaño del canvas
+    document.body.appendChild(renderer.domElement); // Agrega el canvas al cuerpo del HTML
+
+    // Luz ambiental (para iluminar todo el modelo)
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+    scene.add(ambientLight);
+
+    // Luz direccional (simula la luz solar)
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(5, 10, 7.5);
+    scene.add(directionalLight);
+
+    // Control de cámara (OrbitControls)
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true; // Suavidad en los movimientos
+    controls.dampingFactor = 0.05;
+
+    // Cargador de modelo GLB/GLTF
+    const loader = new THREE.GLTFLoader();
+    loader.load(
+      'monky.glb', // Ruta del archivo 3D
+      (gltf) => {
+        const model = gltf.scene; // Carga la escena del modelo
+        model.position.set(0, 0, 0); // Posición del modelo
+        model.scale.set(1, 1, 1); // Escala del modelo (ajusta según sea necesario)
+        scene.add(model); // Añade el modelo a la escena
+      },
+      undefined,
+      (error) => {
+        console.error('Error al cargar el modelo:', error);
+      }
+    );
+
+    // Configuración de la cámara
+    camera.position.z = 5; // Distancia inicial de la cámara
+
+    // Animación del renderizado
+    function animate() {
+      requestAnimationFrame(animate); // Llama continuamente a la función de animación
+      controls.update(); // Actualiza los controles
+      renderer.render(scene, camera); // Renderiza la escena
+    }
+
+    animate(); // Inicia la animación
+
+    // Ajustar el canvas cuando se cambia el tamaño de la ventana
+    window.addEventListener('resize', () => {
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+    });
+  </script>
+</body>
+</html>
