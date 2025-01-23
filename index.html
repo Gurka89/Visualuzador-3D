@@ -48,18 +48,31 @@
       'monky.glb', // Ruta del archivo 3D
       (gltf) => {
         const model = gltf.scene; // Carga la escena del modelo
-        model.position.set(0, 0, 0); // Posición del modelo
-        model.scale.set(1, 1, 1); // Escala del modelo (ajusta según sea necesario)
         scene.add(model); // Añade el modelo a la escena
+
+        // Calcula los límites del modelo
+        const box = new THREE.Box3().setFromObject(model);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+
+        // Centra el modelo en la escena
+        model.position.x += model.position.x - center.x;
+        model.position.y += model.position.y - center.y;
+        model.position.z += model.position.z - center.z;
+
+        // Ajusta la posición de la cámara basado en el tamaño del modelo
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const fov = camera.fov * (Math.PI / 180); // Convierte el FOV a radianes
+        const cameraDistance = Math.abs(maxDim / Math.sin(fov / 2));
+
+        camera.position.set(center.x, center.y, cameraDistance); // Cámara mirando al modelo
+        camera.lookAt(center); // Enfoca la cámara al centro del modelo
       },
       undefined,
       (error) => {
         console.error('Error al cargar el modelo:', error);
       }
     );
-
-  // Configuración de la cámara
-camera.position.set(0, 1, 3); // Ajusta X, Y, Z para centrar y alejar el modelo
 
     // Animación del renderizado
     function animate() {
