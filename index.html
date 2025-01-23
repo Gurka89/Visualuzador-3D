@@ -3,19 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Visualizador 3D</title>
+  <title>Visualizador 3D con WebXR</title>
   <style>
     body {
       margin: 0;
-      overflow: hidden; /* Oculta barras de desplazamiento */
+      overflow: hidden;
     }
     canvas {
-      display: block; /* Ocupa toda la pantalla */
+      display: block;
+    }
+    button {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <!-- Importamos Three.js y el cargador GLTFLoader -->
+  <!-- Importar Three.js y módulos necesarios -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.152.2/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/controls/OrbitControls.js"></script>
@@ -24,49 +37,48 @@
     // Configuración básica de la escena
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer();
-    renderer.setSize(window.innerWidth, window.innerHeight); // Tamaño del canvas
-    document.body.appendChild(renderer.domElement); // Agrega el canvas al cuerpo del HTML
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.xr.enabled = true; // Habilitar WebXR
+    document.body.appendChild(renderer.domElement);
 
-    // Luz ambiental (para iluminar todo el modelo)
+    // Luz ambiental
     const ambientLight = new THREE.AmbientLight(0xffffff, 1);
     scene.add(ambientLight);
 
-    // Luz direccional (simula la luz solar)
+    // Luz direccional
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
     directionalLight.position.set(5, 10, 7.5);
     scene.add(directionalLight);
 
     // Control de cámara (OrbitControls)
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true; // Suavidad en los movimientos
+    controls.enableDamping = true;
     controls.dampingFactor = 0.05;
 
-    // Cargador de modelo GLB/GLTF
+    // Cargar modelo GLB/GLTF
     const loader = new THREE.GLTFLoader();
     loader.load(
-      'monky.glb', // Ruta del archivo 3D
+      'monky.glb', // Ruta del modelo 3D
       (gltf) => {
-        const model = gltf.scene; // Carga la escena del modelo
-        scene.add(model); // Añade el modelo a la escena
+        const model = gltf.scene;
+        scene.add(model);
 
-        // Calcula los límites del modelo
+        // Centrar el modelo en la escena
         const box = new THREE.Box3().setFromObject(model);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
 
-        // Centra el modelo en la escena
         model.position.x += model.position.x - center.x;
         model.position.y += model.position.y - center.y;
         model.position.z += model.position.z - center.z;
 
-        // Ajusta la posición de la cámara basado en el tamaño del modelo
+        // Ajustar cámara
         const maxDim = Math.max(size.x, size.y, size.z);
-        const fov = camera.fov * (Math.PI / 180); // Convierte el FOV a radianes
+        const fov = camera.fov * (Math.PI / 180);
         const cameraDistance = Math.abs(maxDim / Math.sin(fov / 2));
-
-        camera.position.set(center.x, center.y, cameraDistance); // Cámara mirando al modelo
-        camera.lookAt(center); // Enfoca la cámara al centro del modelo
+        camera.position.set(center.x, center.y, cameraDistance);
+        camera.lookAt(center);
       },
       undefined,
       (error) => {
@@ -74,21 +86,46 @@
       }
     );
 
-    // Animación del renderizado
+    // Función de animación
     function animate() {
-      requestAnimationFrame(animate); // Llama continuamente a la función de animación
-      controls.update(); // Actualiza los controles
-      renderer.render(scene, camera); // Renderiza la escena
+      renderer.setAnimationLoop(() => {
+        controls.update();
+        renderer.render(scene, camera);
+      });
     }
 
-    animate(); // Inicia la animación
+    // Botón para iniciar AR
+    const ARButton = {
+      createButton: (renderer) => {
+        const button = document.createElement('button');
+        button.innerText = 'Iniciar AR';
+        button.onclick = () => {
+          navigator.xr
+            .requestSession('immersive-ar', {
+              requiredFeatures: ['hit-test'], // Habilitar prueba de superficies
+              optionalFeatures: ['dom-overlay'],
+              domOverlay: { root: document.body }
+            })
+            .then((session) => {
+              renderer.xr.setSession(session);
+            });
+        };
+        return button;
+      }
+    };
+
+    // Agregar botón AR a la página
+    document.body.appendChild(ARButton.createButton(renderer));
 
     // Ajustar el canvas cuando se cambia el tamaño de la ventana
     window.addEventListener('resize', () => {
-      renderer.setSize(window.innerWidth, window.innerHeight);
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
     });
+
+    // Iniciar animación
+    animate();
   </script>
 </body>
 </html>
