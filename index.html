@@ -3,82 +3,84 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Visualizador 3D con WebXR</title>
+  <title>NeuroPoint - Visualización 3D del Cerebro</title>
   <style>
     body {
       margin: 0;
       overflow: hidden;
+      background: linear-gradient(to bottom, #121212, #1a1a2e); /* Fondo profesional */
     }
     canvas {
       display: block;
     }
-    button {
-      position: absolute;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 10px 20px;
-      font-size: 16px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
   </style>
 </head>
 <body>
+
   <!-- Importar Three.js y módulos necesarios -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.152.2/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/controls/OrbitControls.js"></script>
 
   <script>
-    // Configuración básica de la escena
+    // Configuración de la escena
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    scene.fog = new THREE.Fog(0x1a1a2e, 5, 15); // Neblina para profundidad
+
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.xr.enabled = true; // Habilitar WebXR
+    renderer.shadowMap.enabled = true; // Habilitar sombras
     document.body.appendChild(renderer.domElement);
 
     // Luces dinámicas
-    const ambientLight = new THREE.AmbientLight(0xffffff, 2);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
-    directionalLight.position.set(5, 10, 7.5);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+    directionalLight.position.set(5, 10, 5);
+    directionalLight.castShadow = true;
     scene.add(directionalLight);
 
-    // Efecto de luz animada
-    const pointLight = new THREE.PointLight(0xff9900, 1, 50);
-    pointLight.position.set(0, 5, 5);
+    // Luz focalizada con animación
+    const pointLight = new THREE.PointLight(0xff8800, 2, 30);
+    pointLight.position.set(0, 5, 10);
     scene.add(pointLight);
 
     // Control de cámara interactivo
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.1;
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.5;
+    controls.dampingFactor = 0.08;
+    controls.autoRotate = false;
 
-    let model;
+    let brainModel;
 
     // Cargar modelo GLB/GLTF
     const loader = new THREE.GLTFLoader();
     loader.load(
       'monky.glb',
       (gltf) => {
-        model = gltf.scene;
-        scene.add(model);
+        brainModel = gltf.scene;
+        brainModel.traverse((node) => {
+          if (node.isMesh) {
+            node.castShadow = true;
+            node.receiveShadow = true;
+          }
+        });
+        scene.add(brainModel);
 
-        // Ajustar tamaño y posición
-        const box = new THREE.Box3().setFromObject(model);
+        // Ajustar posición y tamaño automáticamente
+        const box = new THREE.Box3().setFromObject(brainModel);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
 
-        model.position.set(-center.x, -center.y, -center.z);
-        model.scale.set(1.5, 1.5, 1.5);
+        brainModel.position.set(-center.x, -center.y + 0.5, -center.z);
+        brainModel.scale.setScalar(1.8);
+
+        // Ajustar cámara
+        const maxDim = Math.max(size.x, size.y, size.z);
+        camera.position.set(0, maxDim * 1.2, maxDim * 2);
+        camera.lookAt(center);
       },
       undefined,
       (error) => {
@@ -86,51 +88,29 @@
       }
     );
 
-    // Animación de rotación y pulsación
-    function animateModel() {
-      if (model) {
-        model.rotation.y += 0.01;
-        model.scale.setScalar(1.5 + 0.05 * Math.sin(Date.now() * 0.005));
+    // Animación del cerebro (rotación sutil + latidos)
+    function animateBrain() {
+      if (brainModel) {
+        brainModel.rotation.y += 0.001; // Rotación más lenta y realista
+        let scaleVariation = 0.02 * Math.sin(Date.now() * 0.002);
+        brainModel.scale.setScalar(1.8 + scaleVariation);
       }
     }
 
-    // Animación del punto de luz
+    // Animación de la luz focalizada
     function animateLight() {
-      pointLight.intensity = 1 + Math.sin(Date.now() * 0.005) * 0.5;
+      pointLight.intensity = 1.5 + Math.sin(Date.now() * 0.005) * 0.3;
+      pointLight.position.y = 5 + Math.sin(Date.now() * 0.003) * 1; // Movimiento dinámico de la luz
     }
 
     // Función de animación
     function animate() {
-      renderer.setAnimationLoop(() => {
-        controls.update();
-        animateModel();
-        animateLight();
-        renderer.render(scene, camera);
-      });
+      requestAnimationFrame(animate);
+      controls.update();
+      animateBrain();
+      animateLight();
+      renderer.render(scene, camera);
     }
-
-    // Botón para iniciar AR
-    const ARButton = {
-      createButton: (renderer) => {
-        const button = document.createElement('button');
-        button.innerText = 'Iniciar AR';
-        button.onclick = () => {
-          navigator.xr
-            .requestSession('immersive-ar', {
-              requiredFeatures: ['hit-test'],
-              optionalFeatures: ['dom-overlay'],
-              domOverlay: { root: document.body }
-            })
-            .then((session) => {
-              renderer.xr.setSession(session);
-            });
-        };
-        return button;
-      }
-    };
-
-    // Agregar botón AR a la página
-    document.body.appendChild(ARButton.createButton(renderer));
 
     // Ajustar el canvas cuando se cambia el tamaño de la ventana
     window.addEventListener('resize', () => {
