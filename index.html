@@ -90,7 +90,7 @@
     function animateModel() {
       if (model) {
         model.rotation.y += 0.01;
-        model.scale.setScalar(1.5 + 0.05 * Math.sin(Date.now() * 0.005));
+        model.scale.setScalar(1.5 + 0.05 * Math.sin(Date.now() * 0.5));
       }
     }
 
