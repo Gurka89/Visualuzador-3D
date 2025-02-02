@@ -36,49 +36,49 @@
   <script>
     // Configuración básica de la escena
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.xr.enabled = true; // Habilitar WebXR
     document.body.appendChild(renderer.domElement);
 
-    // Luz ambiental
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+    // Luces dinámicas
+    const ambientLight = new THREE.AmbientLight(0xffffff, 2);
     scene.add(ambientLight);
 
-    // Luz direccional
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
     directionalLight.position.set(5, 10, 7.5);
     scene.add(directionalLight);
 
-    // Control de cámara (OrbitControls)
+    // Efecto de luz animada
+    const pointLight = new THREE.PointLight(0xff9900, 1, 50);
+    pointLight.position.set(0, 5, 5);
+    scene.add(pointLight);
+
+    // Control de cámara interactivo
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
+    controls.dampingFactor = 0.1;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.5;
+
+    let model;
 
     // Cargar modelo GLB/GLTF
     const loader = new THREE.GLTFLoader();
     loader.load(
-      'monky.glb', // Ruta del modelo 3D
+      'monky.glb',
       (gltf) => {
-        const model = gltf.scene;
+        model = gltf.scene;
         scene.add(model);
 
-        // Centrar el modelo en la escena
+        // Ajustar tamaño y posición
         const box = new THREE.Box3().setFromObject(model);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
 
-        model.position.x += model.position.x - center.x;
-        model.position.y += model.position.y - center.y;
-        model.position.z += model.position.z - center.z;
-
-        // Ajustar cámara
-        const maxDim = Math.max(size.x, size.y, size.z);
-        const fov = camera.fov * (Math.PI / 180);
-        const cameraDistance = Math.abs(maxDim / Math.sin(fov / 2));
-        camera.position.set(center.x, center.y, cameraDistance);
-        camera.lookAt(center);
+        model.position.set(-center.x, -center.y, -center.z);
+        model.scale.set(1.5, 1.5, 1.5);
       },
       undefined,
       (error) => {
@@ -86,10 +86,25 @@
       }
     );
 
+    // Animación de rotación y pulsación
+    function animateModel() {
+      if (model) {
+        model.rotation.y += 0.01;
+        model.scale.setScalar(1.5 + 0.05 * Math.sin(Date.now() * 0.005));
+      }
+    }
+
+    // Animación del punto de luz
+    function animateLight() {
+      pointLight.intensity = 1 + Math.sin(Date.now() * 0.005) * 0.5;
+    }
+
     // Función de animación
     function animate() {
       renderer.setAnimationLoop(() => {
         controls.update();
+        animateModel();
+        animateLight();
         renderer.render(scene, camera);
       });
     }
@@ -102,7 +117,7 @@
         button.onclick = () => {
           navigator.xr
             .requestSession('immersive-ar', {
-              requiredFeatures: ['hit-test'], // Habilitar prueba de superficies
+              requiredFeatures: ['hit-test'],
               optionalFeatures: ['dom-overlay'],
               domOverlay: { root: document.body }
             })
